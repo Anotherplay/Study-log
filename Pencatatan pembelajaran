@@ -1,0 +1,199 @@
+import json
+import os
+import datetime
+
+DATA_FILE = "catatan.json"
+
+# Utility functions: consistent, tidy terminal output
+def print_header(title):
+    print('\n' + '='*10 + f' {title} ' + '='*10)
+
+def print_ok(msg):
+    print(f"[✓] {msg}")
+
+def print_info(msg):
+    print(f"[i] {msg}")
+
+def print_error(msg):
+    print(f"[!] {msg}")
+
+def clear_screen():
+    """Clear terminal screen (cross-platform)."""
+    try:
+        if os.name == 'nt':
+            os.system('cls')
+        else:
+            os.system('clear')
+    except Exception:
+        # Fallback: print ANSI clear sequence
+        print('\033[H\033[J', end='')
+
+if os.path.exists(DATA_FILE):
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            catatan = json.load(f)
+    except (json.JSONDecodeError, IOError):
+        catatan = []
+else:
+    catatan = []
+
+
+def tambah_catatan():
+    mata_pelajaran = input("Mata pelajaran yang dipelajari: ").strip()
+    topik = input("Topik yang dipelajari: ").strip()
+
+    while True:
+        durasi_input = input("Durasi belajar (menit): ").strip()
+        try:
+            durasi = int(durasi_input)
+            if durasi <= 0:
+                print("Masukkan durasi dalam menit (angka positif).")
+                continue
+            break
+        except ValueError:
+            print("Masukkan angka untuk durasi (mis. 60).")
+
+    tanggal = datetime.date.today().isoformat()
+
+    entry = {
+        "mata_pelajaran": mata_pelajaran,
+        "topik": topik,
+        "durasi_menit": durasi,
+        "tanggal": tanggal
+    }
+
+    catatan.append(entry)
+
+    # simpan ke file
+    try:
+        with open(DATA_FILE, "w", encoding="utf-8") as f:
+            json.dump(catatan, f, ensure_ascii=False, indent=2)
+    except IOError:
+        print_error("Gagal menyimpan ke file.")
+        return
+
+    print_ok("Catatan berhasil disimpan")
+
+
+def lihat_catatan():
+    if not catatan:
+        print_info("Belum ada catatan.")
+        return
+
+    print_header("Daftar Catatan Belajar")
+    print(f"{'No':<3} {'Mapel':<15} {'Topik':<25} {'Durasi':<8} {'Tanggal'}")
+    print('-'*70)
+    for idx, c in enumerate(catatan, 1):
+        tanggal = c.get('tanggal', '-')
+        print(f"{idx:<3} {c.get('mata_pelajaran','-'):<15} {c.get('topik','-'):<25} {str(c.get('durasi_menit',0))+' m':<8} {tanggal}")
+    print('-'*70)
+    print()
+
+
+def format_duration(minutes: int) -> str:
+    """Format durasi (menit) ke representasi yang lebih manusiawi.
+    Contoh:
+      45 -> '45 menit'
+      60 -> '1 jam'
+      90 -> '1 jam 30 menit'
+      1500 -> '1 hari 1 jam'
+    """
+    if minutes < 60:
+        return f"{minutes} menit"
+
+    mins_in_day = 24 * 60
+    if minutes >= mins_in_day:
+        days = minutes // mins_in_day
+        rem = minutes % mins_in_day
+        hours = rem // 60
+        parts = []
+        parts.append(f"{days} hari")
+        if hours:
+            parts.append(f"{hours} jam")
+        return ' '.join(parts)
+
+    # 60 <= minutes < 1440
+    hours = minutes // 60
+    rem = minutes % 60
+    if rem:
+        return f"{hours} jam {rem} menit"
+    return f"{hours} jam"
+
+
+def total_waktu():
+    total = sum(c.get('durasi_menit', 0) for c in catatan)
+    print_header('Total Waktu Belajar')
+    print(f"Total waktu belajar: {format_duration(total)}")
+    print()
+
+
+def ringkasan_mingguan():
+    if not catatan:
+        print("Belum ada catatan.")
+        return
+
+    today = datetime.date.today()
+    year, week, _ = today.isocalendar()
+
+    week_entries = []
+    for c in catatan:
+        t = c.get('tanggal')
+        if not t:
+            continue
+        try:
+            d = datetime.date.fromisoformat(t)
+        except ValueError:
+            continue
+        y, w, _ = d.isocalendar()
+        if (y, w) == (year, week):
+            week_entries.append(c)
+
+    if not week_entries:
+        print("Belum ada catatan untuk minggu ini.")
+        return
+
+    totals = {}
+    total_all = 0
+    for c in week_entries:
+        subj = c.get('mata_pelajaran') or 'Umum'
+        totals[subj] = totals.get(subj, 0) + c.get('durasi_menit', 0)
+        total_all += c.get('durasi_menit', 0)
+
+    print_header(f'Ringkasan Mingguan (Minggu {week}, {year})')
+    print(f"{'Mapel':<20} {'Menit':>6}")
+    print('-'*30)
+    for subj, mins in totals.items():
+        print(f"{subj:<20} {mins:>6} menit")
+    print('-'*30)
+    print(f"Total minggu ini: {total_all} menit")
+    print()
+
+
+
+
+
+def menu():
+    print_header('Study Log App')
+    print(" 1) Tambah catatan belajar")
+    print(" 2) Lihat catatan belajar")
+    print(" 3) Total waktu belajar")
+    print(" 4) Ringkasan mingguan")
+    print(" 5) Keluar")
+
+while True:
+    menu()
+    pilihan = input("Pilih menu: ")
+
+    if pilihan == "1":
+        tambah_catatan()
+    elif pilihan == "2":
+        lihat_catatan()
+    elif pilihan == "3":
+        total_waktu()
+    elif pilihan == "4":
+        ringkasan_mingguan()
+    elif pilihan == "5":
+        print("Terima kasih, terus semangat belajar!")
+        break
+    else:
+        print("Pilihan tidak valid")

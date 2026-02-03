@@ -1,0 +1,13 @@
+[
+  {
+    "mata_pelajaran": "matematika",
+    "topik": "logaritma",
+    "durasi_menit": 30
+  },
+  {
+    "mata_pelajaran": "matematika",
+    "topik": "trigonometri",
+    "durasi_menit": 60,
+    "tanggal": "2026-02-03"
+  }
+]
